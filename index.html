@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Таксопарк - База управления водителями</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        .modal-backdrop {
+            background-color: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(4px);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <!-- Navigation / Header -->
+    <header class="bg-slate-900 text-white sticky top-0 z-30 shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-amber-500 text-slate-950 p-2 rounded-xl font-black flex items-center gap-2">
+                    <i class="fa-solid fa-taxi text-lg"></i>
+                    <span class="font-extrabold tracking-tight hidden sm:inline">ПАРК ДИСПЕТЧЕР</span>
+                </div>
+                <span class="text-xs text-slate-400 hidden md:inline border-l border-slate-700 pl-3">Система учёта водителей</span>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <!-- Calc Button -->
+                <button onclick="openCalcModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-xl font-semibold text-xs sm:text-sm transition-all shadow-md flex items-center gap-2 cursor-pointer active:scale-95">
+                    <i class="fa-solid fa-calculator text-base"></i>
+                    <span class="hidden sm:inline">Калькулятор %</span>
+                </button>
+
+                <!-- Google Sheets Link Button -->
+                <button onclick="openGoogleSheetsModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-xl font-semibold text-xs sm:text-sm transition-all shadow-md flex items-center gap-2 cursor-pointer active:scale-95">
+                    <i class="fa-solid fa-file-excel text-base"></i>
+                    <span class="hidden sm:inline">База / Экспорт</span>
+                </button>
+
+                <!-- Add New Driver Button for Dispatcher -->
+                <button onclick="openAddModal()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 px-3.5 py-2 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-md hover:shadow-lg flex items-center gap-2 cursor-pointer active:scale-95">
+                    <i class="fa-solid fa-user-plus text-base"></i>
+                    <span class="hidden sm:inline">+ Добавить водителя</span>
+                    <span class="sm:hidden">+ Водитель</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow w-full">
+        
+        <!-- Stats Summary Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Всего водителей</p>
+                    <h3 id="statTotalDrivers" class="text-2xl font-black text-slate-900 mt-1">0</h3>
+                </div>
+                <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-users"></i>
+                </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Приведённые водители</p>
+                    <h3 id="statTotalReferrals" class="text-2xl font-black text-emerald-600 mt-1">0</h3>
+                </div>
+                <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-user-tag"></i>
+                </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Количество парков</p>
+                    <h3 id="statTotalParks" class="text-2xl font-black text-purple-600 mt-1">0</h3>
+                </div>
+                <div class="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-building-flag"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search and Filter Tools -->
+        <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm mb-6 space-y-4">
+            <div class="flex flex-col md:flex-row gap-3 justify-between items-center">
+                <!-- Search Box -->
+                <div class="relative w-full md:w-1/2">
+                    <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input type="text" id="searchInput" oninput="filterDrivers()" placeholder="Поиск по ФИО, телефону, CLID или В/У..." class="w-full pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white text-sm transition-all">
+                    <button id="clearSearchBtn" onclick="clearSearch()" class="hidden absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1">
+                        <i class="fa-solid fa-circle-xmark"></i>
+                    </button>
+                </div>
+
+                <!-- Activity Type Filter Tabs -->
+                <div class="flex flex-wrap gap-1.5 w-full md:w-auto bg-slate-100 p-1 rounded-xl text-xs font-semibold">
+                    <button onclick="setFilterContract('ALL')" id="filterBtnALL" class="contract-tab active bg-white text-slate-900 shadow-sm px-3 py-2 rounded-lg transition-all">Все виды</button>
+                    <button onclick="setFilterContract('Парковый труд.дог')" id="filterBtnТруд" class="contract-tab text-slate-600 hover:text-slate-900 px-3 py-2 rounded-lg transition-all">Труд.дог</button>
+                    <button onclick="setFilterContract('Парковая самозанятость')" id="filterBtnСамо" class="contract-tab text-slate-600 hover:text-slate-900 px-3 py-2 rounded-lg transition-all">Самозанятость</button>
+                    <button onclick="setFilterContract('Парковый ИП')" id="filterBtnИП" class="contract-tab text-slate-600 hover:text-slate-900 px-3 py-2 rounded-lg transition-all">Парковый ИП</button>
+                </div>
+            </div>
+            
+            <div class="flex justify-between items-center text-xs text-slate-500 border-t border-slate-100 pt-3">
+                <span id="resultsCount">Найдено: 0 водителей</span>
+                <span id="syncHint" class="italic text-slate-400 hidden sm:inline"><i class="fa-solid fa-circle-info mr-1"></i>Нажмите на строку водителя для просмотра всех 10 пунктов</span>
+            </div>
+        </div>
+
+        <!-- Driver List Table -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="overflow-x-auto custom-scrollbar">
+                <table class="w-full text-left border-collapse min-w-[700px]">
+                    <thead>
+                        <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs uppercase tracking-wider font-semibold">
+                            <th class="py-3.5 px-4">Парк & ФИО водителя</th>
+                            <th class="py-3.5 px-4">CLID & В/У</th>
+                            <th class="py-3.5 px-4">Номера телефонов (WhatsApp)</th>
+                            <th class="py-3.5 px-4">От кого (Реферал)</th>
+                            <th class="py-3.5 px-4">Вид деятельности</th>
+                            <th class="py-3.5 px-4 text-right">Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody id="driverTableBody" class="divide-y divide-slate-100 text-sm">
+                        <!-- Dynamic driver rows -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Empty state element -->
+            <div id="emptyState" class="hidden py-16 text-center">
+                <div class="w-16 h-16 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl">
+                    <i class="fa-solid fa-user-slash"></i>
+                </div>
+                <h4 class="text-base font-semibold text-slate-700">База водителей пуста</h4>
+                <p class="text-xs text-slate-400 mt-1 max-w-xs mx-auto">Нажмите "+ Добавить водителя", чтобы ввести данные первого водителя с нуля.</p>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- DRIVER DETAILS MODAL (All 10 Points Display) -->
+    <div id="detailsModal" class="modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 hidden transition-opacity duration-200">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
+            <!-- Modal Header -->
+            <div class="bg-slate-900 text-white p-5 flex justify-between items-start">
+                <div>
+                    <div class="inline-flex items-center gap-2 bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs px-2.5 py-0.5 rounded-full mb-1.5 font-medium" id="modalParkName">
+                        <i class="fa-solid fa-building text-[10px]"></i> <span id="viewPark">Парк: -</span>
+                    </div>
+                    <h2 class="text-xl font-bold tracking-tight text-white" id="viewFIO">ФИО Водителя</h2>
+                    <p class="text-xs text-slate-400 mt-0.5 flex items-center gap-2">
+                        <span><i class="fa-solid fa-earth-americas mr-1"></i><span id="viewCountry">Страна</span></span>
+                        <span>•</span>
+                        <span id="viewContractBadge" class="bg-slate-800 text-slate-200 px-2 py-0.5 rounded">Договор</span>
+                    </p>
+                </div>
+                <button onclick="closeDetailsModal()" class="text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 w-8 h-8 rounded-full flex items-center justify-center transition-all">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body (10 Detailed Points) -->
+            <div class="p-6 overflow-y-auto custom-scrollbar space-y-6">
+                
+                <!-- Referral Banner / Card -->
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-amber-500 text-slate-950 rounded-xl flex items-center justify-center font-bold text-lg shadow-sm">
+                            <i class="fa-solid fa-handshake"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold uppercase text-slate-500">8. От кого (Кто привёл):</p>
+                            <p class="text-sm font-bold text-slate-900" id="viewReferredBy">— Никого (Пришел напрямую)</p>
+                        </div>
+                    </div>
+                    <div class="text-right sm:text-right w-full sm:w-auto border-t sm:border-t-0 border-slate-200 pt-2 sm:pt-0">
+                        <span class="text-xs text-slate-500 block">Приведено лично:</span>
+                        <span id="viewReferralsCount" class="text-sm font-bold text-slate-800">0 чел</span>
+                    </div>
+                </div>
+
+                <!-- Grid Details (Points 1-9) -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    
+                    <!-- Point 1: Park Name -->
+                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+                        <span class="text-xs font-bold text-slate-400 block uppercase mb-1">1. Название парка</span>
+                        <div class="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-building text-amber-500"></i>
+                            <span id="viewPark1">-</span>
+                        </div>
+                    </div>
+
+                    <!-- Point 2: Full Name -->
+                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+                        <span class="text-xs font-bold text-slate-400 block uppercase mb-1">2. ФИО водителя</span>
+                        <div class="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-id-card text-blue-500"></i>
+                            <span id="viewFIO2">-</span>
+                        </div>
+                    </div>
+
+                    <!-- Point 3: Personal Link -->
+                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+                        <span class="text-xs font-bold text-slate-400 block uppercase mb-1">3. Ссылка личная</span>
+                        <div class="text-sm font-semibold text-slate-800 truncate">
+                            <a id="viewLink" href="#" target="_blank" class="text-blue-600 hover:underline flex items-center gap-1.5 truncate">
+                                <i class="fa-solid fa-link text-xs"></i>
+                                <span id="viewLinkText">-</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Point 4: CLID Number -->
+                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+                        <span class="text-xs font-bold text-slate-400 block uppercase mb-1">4. CLID Номер</span>
+                        <div class="text-sm font-mono font-bold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-hashtag text-purple-500"></i>
+                            <span id="viewClid">-</span>
+                        </div>
+                    </div>
+
+                    <!-- Point 5: Driver License (В/У) -->
+                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+                        <span class="text-xs font-bold text-slate-400 block uppercase mb-1">5. В/У (Водительское удостоверение)</span>
+                        <div class="text-sm font-mono font-bold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-id-badge text-emerald-500"></i>
+                            <span id="viewLicense">-</span>
+                        </div>
+                    </div>
+
+                    <!-- Point 6: Country -->
+                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+                        <span class="text-xs font-bold text-slate-400 block uppercase mb-1">6. Страна</span>
+                        <div class="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-flag text-red-500"></i>
+                            <span id="viewCountry2">-</span>
+                        </div>
+                    </div>
+
+                    <!-- Point 7: Phone Numbers & WhatsApp -->
+                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 sm:col-span-2">
+                        <span class="text-xs font-bold text-slate-400 block uppercase mb-1">7. Номер телефона (доп. номер)</span>
+                        <div class="flex flex-wrap gap-2 text-sm font-semibold text-slate-900">
+                            <!-- Main phone -->
+                            <div class="flex items-center gap-1 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
+                                <a id="viewPhoneMain" href="tel:" class="flex items-center gap-1.5 text-slate-800 hover:text-amber-600">
+                                    <i class="fa-solid fa-phone text-emerald-600"></i>
+                                    <span id="viewPhoneMainText">-</span>
+                                </a>
+                                <a id="viewPhoneMainWa" href="#" target="_blank" title="Написать в WhatsApp" class="ml-1 text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 p-1 rounded transition-all text-xs flex items-center gap-1">
+                                    <i class="fa-brands fa-whatsapp text-sm"></i>
+                                </a>
+                            </div>
+
+                            <!-- Extra phone -->
+                            <div id="viewPhoneExtraBox" class="flex items-center gap-1 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
+                                <a id="viewPhoneExtra" href="tel:" class="flex items-center gap-1.5 text-slate-800 hover:text-amber-600">
+                                    <i class="fa-solid fa-phone-flip text-blue-600"></i>
+                                    <span>Доп: <span id="viewPhoneExtraText">-</span></span>
+                                </a>
+                                <a id="viewPhoneExtraWa" href="#" target="_blank" title="Написать в WhatsApp" class="ml-1 text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 p-1 rounded transition-all text-xs flex items-center gap-1">
+                                    <i class="fa-brands fa-whatsapp text-sm"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Point 9: Activity Type -->
+                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 sm:col-span-2">
+                        <span class="text-xs font-bold text-slate-400 block uppercase mb-1">9. Вид деятельности</span>
+                        <div class="inline-flex items-center gap-2 font-bold px-3.5 py-1.5 rounded-lg text-sm bg-amber-100 text-amber-900 border border-amber-300" id="viewContractType">
+                            <i class="fa-solid fa-briefcase"></i>
+                            <span id="viewContractTypeText">-</span>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Point 8 Detail: Referred Drivers List -->
+                <div class="border-t border-slate-200 pt-4">
+                    <h4 class="text-sm font-bold text-slate-800 mb-2.5 flex items-center justify-between">
+                        <span><i class="fa-solid fa-users-viewfinder text-amber-500 mr-2"></i>Список привлеченных водителей</span>
+                    </h4>
+                    <div id="referredListContainer" class="space-y-2">
+                        <!-- Dynamic list -->
+                    </div>
+                </div>
+
+                <!-- Point 10: Documents and Photos -->
+                <div class="border-t border-slate-200 pt-4">
+                    <h4 class="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-file-image text-amber-500"></i>
+                        <span>10. Фото комплект документов</span>
+                    </h4>
+                    <div id="viewPhotosGallery" class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        <!-- Photos previews -->
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="bg-slate-50 p-4 border-t border-slate-200 flex justify-between items-center">
+                <button id="modalDeleteBtn" onclick="" class="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 font-semibold text-xs sm:text-sm rounded-xl transition-all flex items-center gap-1.5">
+                    <i class="fa-solid fa-trash-can"></i> Удалить водителя
+                </button>
+                <button onclick="closeDetailsModal()" class="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold text-xs sm:text-sm rounded-xl transition-all">
+                    Закрыть
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADD DRIVER MODAL FOR DISPATCHER -->
+    <div id="addModal" class="modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 hidden transition-opacity duration-200">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[92vh] flex flex-col overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
+            <!-- Modal Header -->
+            <div class="bg-amber-500 text-slate-950 p-5 flex justify-between items-center">
+                <div class="flex items-center gap-2.5">
+                    <div class="bg-slate-900 text-amber-400 p-2.5 rounded-xl">
+                        <i class="fa-solid fa-user-plus text-lg"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-extrabold tracking-tight">Добавить водителя в базу</h2>
+                        <p class="text-xs text-slate-900 font-medium">Панель диспетчера - Заполнение 10 обязательных пунктов</p>
+                    </div>
+                </div>
+                <button onclick="closeAddModal()" class="text-slate-800 hover:text-slate-950 bg-amber-400 hover:bg-amber-300 w-8 h-8 rounded-full flex items-center justify-center transition-all">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Modal Form Body -->
+            <form id="addDriverForm" onsubmit="handleAddDriver(event)" class="p-6 overflow-y-auto custom-scrollbar space-y-5">
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    
+                    <!-- 1. Park Name -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">1. Название парка <span class="text-red-500">*</span></label>
+                        <input type="text" id="addPark" required placeholder="Например: Гарант" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:bg-white text-sm outline-none">
+                    </div>
+
+                    <!-- 2. Full Name (ФИО) -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">2. ФИО Водителя <span class="text-red-500">*</span></label>
+                        <input type="text" id="addFIO" required placeholder="Например: Айтиев Павел Курманович" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:bg-white text-sm outline-none">
+                    </div>
+
+                    <!-- 3. Personal Link -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">3. Ссылка личная</label>
+                        <input type="url" id="addLink" placeholder="https://yango.pro/driver/..." class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:bg-white text-sm outline-none">
+                    </div>
+
+                    <!-- 4. CLID Number -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">4. CLID Номер <span class="text-red-500">*</span></label>
+                        <input type="text" id="addClid" required placeholder="40001122475" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:bg-white text-sm font-mono outline-none">
+                    </div>
+
+                    <!-- 5. Driver License (В/У) -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">5. Водительское удостоверение (В/У) <span class="text-red-500">*</span></label>
+                        <input type="text" id="addLicense" required placeholder="MKK 41608 DL 21778" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:bg-white text-sm font-mono outline-none">
+                    </div>
+
+                    <!-- 6. Country -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">6. Страна <span class="text-red-500">*</span></label>
+                        <select id="addCountry" required class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:bg-white text-sm outline-none font-medium">
+                            <option value="Кыргызстан" selected>Кыргызстан</option>
+                            <option value="Россия">Россия</option>
+                            <option value="Казахстан">Казахстан</option>
+                            <option value="Узбекистан">Узбекистан</option>
+                            <option value="Таджикистан">Таджикистан</option>
+                            <option value="Другая страна">Другая страна</option>
+                        </select>
+                    </div>
+
+                    <!-- 7. Main Phone -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">7. Номер телефона <span class="text-red-500">*</span></label>
+                        <input type="tel" id="addPhoneMain" required placeholder="+7 (977) 179-54-74" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:bg-white text-sm outline-none">
+                    </div>
+
+                    <!-- 7 (extra). Additional Phone -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">7. Номер телефона (доп. номер)</label>
+                        <input type="tel" id="addPhoneExtra" placeholder="+996 (555) 12-34-56" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:bg-white text-sm outline-none">
+                    </div>
+
+                    <!-- 8. Referred By (От кого) - Combobox / Input with Datalist -->
+                    <div class="sm:col-span-2 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">
+                            8. От кого (Кто привёл водителя?)
+                        </label>
+                        <input type="text" id="addReferredBy" list="referredByOptions" placeholder="Введите ФИО вручную или выберите из подсказок..." class="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 text-sm outline-none font-medium">
+                        <datalist id="referredByOptions">
+                            <!-- Dynamically loaded existing drivers -->
+                        </datalist>
+                    </div>
+
+                    <!-- 9. Activity Type (Dropdown Select) -->
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">
+                            9. Вид деятельности (Выбор договора) <span class="text-red-500">*</span>
+                        </label>
+                        <select id="addContractType" required class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:bg-white text-sm outline-none font-bold text-slate-800">
+                            <option value="Парковый труд.дог">Парковый труд.дог</option>
+                            <option value="Парковая самозанятость">Парковая самозанятость</option>
+                            <option value="Парковый ИП">Парковый ИП</option>
+                        </select>
+                    </div>
+
+                    <!-- 10. Photo Upload Set -->
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">10. Фото комплект документов (Загрузка)</label>
+                        <div class="border-2 border-dashed border-slate-300 hover:border-amber-500 rounded-xl p-4 text-center bg-slate-50 hover:bg-white transition-all">
+                            <input type="file" id="addPhotoFiles" multiple accept="image/*" onchange="previewUploadedFiles(this)" class="hidden">
+                            <label for="addPhotoFiles" class="cursor-pointer flex flex-col items-center justify-center">
+                                <i class="fa-solid fa-cloud-arrow-up text-3xl text-amber-500 mb-2"></i>
+                                <span class="text-sm font-semibold text-slate-700">Нажмите для выбора файлов/фото документов</span>
+                                <span class="text-xs text-slate-400 mt-1">Паспорт, В/У, Фото авто (PNG, JPG, JPEG)</span>
+                            </label>
+                        </div>
+                        <div id="filePreviewContainer" class="flex flex-wrap gap-2 mt-3">
+                            <!-- Image previews -->
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Submit Button -->
+                <div class="pt-3 border-t border-slate-200 flex justify-end gap-3">
+                    <button type="button" onclick="closeAddModal()" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm rounded-xl transition-all">
+                        Отмена
+                    </button>
+                    <button type="submit" class="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm rounded-xl transition-all shadow-md flex items-center gap-2">
+                        <i class="fa-solid fa-check"></i>
+                        Сохранить в базу
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- PERCENTAGE CALCULATOR MODAL -->
+    <div id="calcModal" class="modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 hidden transition-opacity duration-200">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full flex flex-col overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
+            <div class="bg-indigo-700 text-white p-5 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div class="bg-indigo-800 p-2.5 rounded-xl">
+                        <i class="fa-solid fa-calculator text-xl text-indigo-200"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-lg leading-tight">Расчет процента парка</h3>
+                        <p class="text-xs text-indigo-200">Быстрый калькулятор для диспетчера</p>
+                    </div>
+                </div>
+                <button onclick="closeCalcModal()" class="text-indigo-200 hover:text-white text-lg w-8 h-8 rounded-full flex items-center justify-center hover:bg-indigo-800 transition-all">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-5">
+                <!-- Amount input -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Заработанная сумма водителя:</label>
+                    <div class="relative">
+                        <input type="number" id="calcAmount" oninput="calculateCommission()" placeholder="Например: 5000" class="w-full pl-3.5 pr-12 py-3 bg-slate-50 border border-slate-300 rounded-xl text-lg font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white">
+                        <span class="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-sm">сом/руб</span>
+                    </div>
+                </div>
+
+                <!-- Percent Selectors (1% - 10%) -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Выберите процент (от 1% до 10%):</label>
+                    <div class="grid grid-cols-5 gap-1.5 mb-2.5">
+                        <button type="button" onclick="setCalcPercent(1)" class="calc-pct-btn bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 font-bold py-2 rounded-lg text-xs transition-all border border-slate-200">1%</button>
+                        <button type="button" onclick="setCalcPercent(2)" class="calc-pct-btn bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 font-bold py-2 rounded-lg text-xs transition-all border border-slate-200">2%</button>
+                        <button type="button" onclick="setCalcPercent(3)" class="calc-pct-btn bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 font-bold py-2 rounded-lg text-xs transition-all border border-slate-200">3%</button>
+                        <button type="button" onclick="setCalcPercent(4)" class="calc-pct-btn bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 font-bold py-2 rounded-lg text-xs transition-all border border-slate-200">4%</button>
+                        <button type="button" onclick="setCalcPercent(5)" class="calc-pct-btn bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 font-bold py-2 rounded-lg text-xs transition-all border border-slate-200">5%</button>
+                        <button type="button" onclick="setCalcPercent(6)" class="calc-pct-btn bg-indigo-600 text-white font-bold py-2 rounded-lg text-xs transition-all border border-indigo-600 active-pct">6%</button>
+                        <button type="button" onclick="setCalcPercent(7)" class="calc-pct-btn bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 font-bold py-2 rounded-lg text-xs transition-all border border-slate-200">7%</button>
+                        <button type="button" onclick="setCalcPercent(8)" class="calc-pct-btn bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 font-bold py-2 rounded-lg text-xs transition-all border border-slate-200">8%</button>
+                        <button type="button" onclick="setCalcPercent(9)" class="calc-pct-btn bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 font-bold py-2 rounded-lg text-xs transition-all border border-slate-200">9%</button>
+                        <button type="button" onclick="setCalcPercent(10)" class="calc-pct-btn bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 font-bold py-2 rounded-lg text-xs transition-all border border-slate-200">10%</button>
+                    </div>
+
+                    <!-- Manual percent input -->
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-slate-500 whitespace-nowrap">Или введите вручную:</span>
+                        <div class="relative w-full">
+                            <input type="number" id="calcPercent" value="6" step="0.1" min="0" max="100" oninput="calculateCommission()" class="w-full pl-3 pr-7 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500">
+                            <span class="absolute right-2.5 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-xs">%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Result Box -->
+                <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-200 space-y-2">
+                    <div class="flex justify-between items-center text-xs text-indigo-900 font-medium">
+                        <span>Комиссия парка (<span id="calcPercentDisplay">6</span>%):</span>
+                        <span id="calcResultCommission" class="text-lg font-black text-indigo-700">0</span>
+                    </div>
+                    <div class="border-t border-indigo-200/60 pt-2 flex justify-between items-center text-xs text-slate-600 font-medium">
+                        <span>Остается водителю (чистые):</span>
+                        <span id="calcResultDriver" class="text-sm font-bold text-slate-800">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 p-4 border-t border-slate-200 text-right">
+                <button onclick="closeCalcModal()" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs transition-all shadow-sm">
+                    Готово
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DELETE CONFIRMATION MODAL -->
+    <div id="deleteModal" class="modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 hidden transition-opacity duration-200">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 text-center border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
+            <div class="w-14 h-14 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900">Удалить запись водителя?</h3>
+            <p class="text-xs text-slate-500 mt-1 mb-6">Вы действительно хотите удалить водителя <span id="deleteDriverName" class="font-bold text-slate-800"></span> из базы? Это действие нельзя будет отменить.</p>
+            <div class="flex gap-3 justify-center">
+                <button onclick="closeDeleteModal()" class="w-1/2 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm rounded-xl transition-all">
+                    Отмена
+                </button>
+                <button id="confirmDeleteBtn" onclick="" class="w-1/2 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-sm rounded-xl transition-all shadow-md">
+                    Да, удалить
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- GOOGLE SHEETS SYNC MODAL -->
+    <div id="googleSheetsModal" class="modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 hidden transition-opacity duration-200">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-xl w-full flex flex-col overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
+            <div class="bg-emerald-700 text-white p-5 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div class="bg-emerald-800 p-2.5 rounded-xl">
+                        <i class="fa-solid fa-table text-xl text-emerald-200"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-lg leading-tight">База и экспорт</h3>
+                        <p class="text-xs text-emerald-100">Общий список водителей таксопарка</p>
+                    </div>
+                </div>
+                <button onclick="closeGoogleSheetsModal()" class="text-emerald-200 hover:text-white text-lg w-8 h-8 rounded-full flex items-center justify-center hover:bg-emerald-800 transition-all">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-5 text-sm overflow-y-auto max-h-[75vh] custom-scrollbar">
+                
+                <!-- Shared base status -->
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
+                    <h4 class="font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-database text-emerald-600"></i>
+                        Общая база водителей
+                    </h4>
+                    <p class="text-xs text-slate-500">Водители и фото документов хранятся внутри самого сайта. Все диспетчеры видят один и тот же список.</p>
+                    <div id="syncStatusBox" class="text-xs font-semibold px-3 py-2 rounded-lg bg-white border border-slate-200 text-slate-600">
+                        <i class="fa-solid fa-circle-info mr-1"></i><span id="syncStatusText">—</span>
+                    </div>
+                    <button onclick="loadFromServer(false)" class="w-full bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 font-semibold py-2 px-4 rounded-xl text-xs transition-all">
+                        <i class="fa-solid fa-rotate mr-1"></i> Обновить список
+                    </button>
+                </div>
+
+                <!-- Export to CSV Section -->
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
+                    <h4 class="font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-file-csv text-emerald-600"></i>
+                        1. Экспорт базы в Excel (CSV)
+                    </h4>
+                    <p class="text-xs text-slate-500">Скачайте актуальную базу всех водителей со всеми 10 полями — файл открывается в Excel.</p>
+                    <button onclick="exportToCSV()" class="w-full mt-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 shadow-sm">
+                        <i class="fa-solid fa-download"></i> Скачать CSV файл
+                    </button>
+                </div>
+
+                <!-- Migration + logout -->
+                <div id="migrateBox" class="hidden bg-amber-50 p-4 rounded-xl border border-amber-200 space-y-2">
+                    <h4 class="font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-cloud-arrow-up text-amber-600"></i>
+                        2. Водители из этого браузера
+                    </h4>
+                    <p class="text-xs text-slate-600">В этом браузере остались водители, которых добавляли раньше (до общей базы): <b id="migrateCount">0</b>. Перенесите их в общую базу.</p>
+                    <button onclick="migrateLocalDrivers()" id="migrateBtn" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition-all shadow-sm">
+                        Перенести в общую базу
+                    </button>
+                </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 p-4 border-t border-slate-200 text-right">
+                <button onclick="closeGoogleSheetsModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl font-semibold text-xs transition-all">
+                    Закрыть
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 border border-slate-800 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+        <div id="toastIcon" class="w-8 h-8 rounded-lg bg-emerald-500 text-slate-950 flex items-center justify-center font-bold">
+            <i class="fa-solid fa-check"></i>
+        </div>
+        <div>
+            <h5 id="toastTitle" class="font-bold text-sm">Успешно!</h5>
+            <p id="toastMessage" class="text-xs text-slate-300">Водитель добавлен в базу.</p>
+        </div>
+    </div>
+
+    <!-- Quick Add Driver Floating Action Button (FAB) -->
+    <button onclick="openAddModal()" title="Добавить нового водителя" class="fixed bottom-6 right-6 z-40 bg-amber-500 hover:bg-amber-400 text-slate-950 p-4 rounded-full shadow-2xl flex items-center justify-center text-xl transition-all hover:scale-110 active:scale-95 border-2 border-slate-900">
+        <i class="fa-solid fa-user-plus"></i>
+    </button>
+
+    <script>
+        function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+        function lsSet(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } }
+        function lsDel(k) { try { localStorage.removeItem(k); } catch (e) {} }
+
+        // Водители, которых раньше добавляли только в этом браузере (до общей базы)
+        let localDrivers = [];
+        try { localDrivers = JSON.parse(lsGet('taxopark_drivers')) || []; } catch (e) { localDrivers = []; }
+
+        // Общая база (с сервера); кэш — чтобы список появлялся сразу
+        let drivers = [];
+        try { drivers = JSON.parse(lsGet('taxopark_shared_cache')) || []; } catch (e) { drivers = []; }
+        let lastSyncAt = null;
+        let syncing = false;
+        const photoCache = {};
+
+        function escHtml(v) {
+            return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        }
+        function escObj(d) {
+            const o = {};
+            Object.keys(d).forEach(k => { o[k] = (typeof d[k] === 'string') ? escHtml(d[k]) : d[k]; });
+            return o;
+        }
+
+        // Запрос к серверу сайта (/api/...)
+        async function api(path, opts) {
+            opts = opts || {};
+            const headers = Object.assign({}, opts.headers || {});
+            let res;
+            try {
+                res = await fetch('/api/' + path, { method: opts.method || 'GET', headers: headers, body: opts.body, cache: 'no-store' });
+            } catch (e) {
+                throw new Error('Нет связи с сервером. Проверьте интернет.');
+            }
+            if (opts.raw && res.ok) return res;
+            let data = null;
+            try { data = await res.json(); } catch (e) {}
+            if (!data) throw new Error('Сервер базы не отвечает. Возможно, сайт загружен без папки netlify (см. инструкцию).');
+            if (!data.ok) {
+                const msg = {
+                    too_large: 'Файл слишком большой (максимум 4 МБ).',
+                    bad_type: 'Можно загружать только фото (JPG, PNG) или PDF.'
+                }[data.error] || ('Ошибка сервера: ' + data.error);
+                throw new Error(msg);
+            }
+            return data;
+        }
+
+        function newId() {
+            return 'DRV-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 6).toUpperCase();
+        }
+
+        function setSyncStatus(text, tone) {
+            const box = document.getElementById('syncStatusBox');
+            const t = document.getElementById('syncStatusText');
+            if (!box || !t) return;
+            t.innerText = text;
+            const tones = {
+                ok: 'bg-emerald-50 border-emerald-300 text-emerald-800',
+                err: 'bg-red-50 border-red-300 text-red-700',
+                info: 'bg-white border-slate-200 text-slate-600'
+            };
+            box.className = 'text-xs font-semibold px-3 py-2 rounded-lg border ' + (tones[tone] || tones.info);
+        }
+
+        function updateSyncHint() {
+            const hint = document.getElementById('syncHint');
+            if (!hint) return;
+            if (lastSyncAt) {
+                hint.innerHTML = '<i class="fa-solid fa-database text-emerald-600 mr-1"></i>Общая база · обновлено ' + lastSyncAt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+            } else if (syncing) {
+                hint.innerHTML = '<i class="fa-solid fa-rotate mr-1"></i>Загрузка общей базы…';
+            }
+        }
+
+        async function loadFromServer(silent) {
+            if (syncing) return;
+            syncing = true;
+            updateSyncHint();
+            try {
+                const data = await api('drivers');
+                drivers = data.drivers || [];
+                lsSet('taxopark_shared_cache', JSON.stringify(drivers));
+                lastSyncAt = new Date();
+                renderTable();
+                updateStats();
+                populateReferralDropdown();
+                setSyncStatus('Подключено. Водителей в базе: ' + drivers.length, 'ok');
+            } catch (err) {
+                setSyncStatus(err.message, 'err');
+                if (!silent) showToast('Нет связи с базой', err.message, 'red');
+            } finally {
+                syncing = false;
+                updateSyncHint();
+            }
+        }
+
+        // Global State
+        let currentContractFilter = 'ALL';
+        let uploadedPhotoDataUrls = [];
+        let driverToDeleteId = null;
+
+        window.onload = function() {
+            renderTable();
+            updateStats();
+            populateReferralDropdown();
+            loadFromServer(false).then(() => {
+                if (localDrivers.length) {
+                    showToast('Есть старые записи', `В этом браузере ${localDrivers.length} водит. — перенесите их через «База / Экспорт».`);
+                }
+            });
+            // Подтягиваем водителей, которых добавили другие диспетчеры
+            setInterval(() => { if (!document.hidden) loadFromServer(true); }, 60000);
+            window.addEventListener('focus', () => loadFromServer(true));
+        };
+
+        function saveToStorage() {
+            lsSet('taxopark_shared_cache', JSON.stringify(drivers));
+        }
+
+        // Helper to convert phone string to digits for wa.me link
+        function formatPhoneForWa(phone) {
+            if (!phone) return '';
+            return phone.replace(/\D/g, '');
+        }
+
+        function renderTable() {
+            const tableBody = document.getElementById('driverTableBody');
+            const searchVal = document.getElementById('searchInput').value.toLowerCase().trim();
+            const emptyState = document.getElementById('emptyState');
+
+            tableBody.innerHTML = '';
+
+            let filtered = drivers.filter(d => {
+                const matchesSearch = 
+                    (d.fio && d.fio.toLowerCase().includes(searchVal)) ||
+                    (d.phoneMain && d.phoneMain.toLowerCase().includes(searchVal)) ||
+                    (d.phoneExtra && d.phoneExtra.toLowerCase().includes(searchVal)) ||
+                    (d.clid && d.clid.toLowerCase().includes(searchVal)) ||
+                    (d.license && d.license.toLowerCase().includes(searchVal)) ||
+                    (d.referredBy && d.referredBy.toLowerCase().includes(searchVal));
+
+                const matchesContract = (currentContractFilter === 'ALL') || (d.contractType === currentContractFilter);
+
+                return matchesSearch && matchesContract;
+            });
+
+            document.getElementById('resultsCount').innerText = `Найдено: ${filtered.length} водителей`;
+
+            if (filtered.length === 0) {
+                emptyState.classList.remove('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+
+                filtered.forEach(driverRaw => {
+                    const driver = escObj(driverRaw);
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-50 transition-colors cursor-pointer group";
+                    tr.onclick = (e) => {
+                        if (!e.target.closest('a') && !e.target.closest('button')) {
+                            openDetailsModal(driverRaw.id);
+                        }
+                    };
+
+                    const mainWaDigits = formatPhoneForWa(driver.phoneMain);
+                    const extraWaDigits = formatPhoneForWa(driver.phoneExtra);
+
+                    tr.innerHTML = `
+                        <td class="py-3.5 px-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center font-bold text-slate-700 text-sm shadow-sm group-hover:border-amber-400 group-hover:bg-amber-50">
+                                    ${driver.fio ? driver.fio.charAt(0) : 'В'}
+                                </div>
+                                <div>
+                                    <div class="font-bold text-slate-900 hover:text-amber-600 transition-colors">${driver.fio || '-'}</div>
+                                    <div class="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5">
+                                        <span class="bg-amber-100 text-amber-800 text-[10px] font-semibold px-1.5 py-0.2 rounded">${driver.park || '-'}</span>
+                                        <span>• ${driver.country || '-'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="py-3.5 px-4 font-mono text-xs">
+                            <div class="font-bold text-slate-800">CLID: ${driver.clid || '-'}</div>
+                            <div class="text-slate-500 text-[11px]">В/У: ${driver.license || '-'}</div>
+                        </td>
+                        <td class="py-3.5 px-4">
+                            <div class="flex items-center gap-2">
+                                <a href="tel:${driver.phoneMain}" class="text-xs font-semibold text-slate-800 hover:text-amber-600 flex items-center gap-1">
+                                    <i class="fa-solid fa-phone text-emerald-600 text-[10px]"></i> ${driver.phoneMain || '-'}
+                                </a>
+                                ${mainWaDigits ? `
+                                    <a href="https://wa.me/${mainWaDigits}" target="_blank" title="Написать в WhatsApp" class="text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 p-1 rounded transition-colors text-xs flex items-center gap-1 font-semibold">
+                                        <i class="fa-brands fa-whatsapp text-sm"></i>
+                                    </a>
+                                ` : ''}
+                            </div>
+                            ${driver.phoneExtra ? `
+                                <div class="flex items-center gap-2 text-[11px] text-slate-500 mt-1">
+                                    <span>Доп: ${driver.phoneExtra}</span>
+                                    ${extraWaDigits ? `
+                                        <a href="https://wa.me/${extraWaDigits}" target="_blank" title="WhatsApp доп. номер" class="text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-1 py-0.5 rounded text-[10px]">
+                                            <i class="fa-brands fa-whatsapp"></i> WA
+                                        </a>
+                                    ` : ''}
+                                </div>
+                            ` : ''}
+                        </td>
+                        <td class="py-3.5 px-4">
+                            ${driver.referredBy ? `
+                                <span class="inline-flex items-center gap-1 text-xs font-semibold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+                                    <i class="fa-solid fa-user-check text-amber-500"></i> ${driver.referredBy}
+                                </span>
+                            ` : `
+                                <span class="text-xs text-slate-400 italic">Напрямую</span>
+                            `}
+                        </td>
+                        <td class="py-3.5 px-4">
+                            ${getContractBadge(driver.contractType)}
+                        </td>
+                        <td class="py-3.5 px-4 text-right">
+                            <div class="flex items-center justify-end gap-1.5">
+                                <button onclick="openDetailsModal('${driver.id}')" title="Просмотр" class="p-2 bg-slate-100 hover:bg-amber-500 hover:text-slate-950 text-slate-700 rounded-lg transition-all text-xs font-semibold">
+                                    <i class="fa-solid fa-eye"></i>
+                                </button>
+                                <button onclick="promptDeleteDriver('${driver.id}')" title="Удалить" class="p-2 bg-slate-100 hover:bg-red-600 hover:text-white text-red-600 rounded-lg transition-all text-xs font-semibold">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                    tableBody.appendChild(tr);
+                });
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('statTotalDrivers').innerText = drivers.length;
+            
+            const totalReferred = drivers.filter(d => d.referredBy && d.referredBy.trim() !== "").length;
+            document.getElementById('statTotalReferrals').innerText = totalReferred;
+
+            const uniqueParks = new Set(drivers.map(d => d.park ? d.park.toLowerCase() : "")).size;
+            document.getElementById('statTotalParks').innerText = uniqueParks;
+        }
+
+        function getContractBadge(type) {
+            if (type === 'Парковый ИП') {
+                return `<span class="bg-purple-50 text-purple-700 border border-purple-200 text-xs font-bold px-2.5 py-1 rounded-lg"><i class="fa-solid fa-briefcase text-[10px] mr-1"></i>Парковый ИП</span>`;
+            } else if (type === 'Парковая самозанятость' || type === 'Парковый самозанят') {
+                return `<span class="bg-blue-50 text-blue-700 border border-blue-200 text-xs font-bold px-2.5 py-1 rounded-lg"><i class="fa-solid fa-user-gear text-[10px] mr-1"></i>Самозанятость</span>`;
+            } else {
+                return `<span class="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold px-2.5 py-1 rounded-lg"><i class="fa-solid fa-file-signature text-[10px] mr-1"></i>Труд.дог</span>`;
+            }
+        }
+
+        function filterDrivers() {
+            const searchVal = document.getElementById('searchInput').value;
+            const clearBtn = document.getElementById('clearSearchBtn');
+            if (searchVal.length > 0) {
+                clearBtn.classList.remove('hidden');
+            } else {
+                clearBtn.classList.add('hidden');
+            }
+            renderTable();
+        }
+
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('clearSearchBtn').classList.add('hidden');
+            renderTable();
+        }
+
+        function setFilterContract(type) {
+            currentContractFilter = type;
+            
+            document.querySelectorAll('.contract-tab').forEach(btn => {
+                btn.classList.remove('bg-white', 'text-slate-900', 'shadow-sm');
+                btn.classList.add('text-slate-600');
+            });
+
+            let activeBtnId = 'filterBtnALL';
+            if (type === 'Парковый труд.дог') activeBtnId = 'filterBtnТруд';
+            if (type === 'Парковая самозанятость') activeBtnId = 'filterBtnСамо';
+            if (type === 'Парковый ИП') activeBtnId = 'filterBtnИП';
+
+            const activeBtn = document.getElementById(activeBtnId);
+            if (activeBtn) {
+                activeBtn.classList.add('bg-white', 'text-slate-900', 'shadow-sm');
+                activeBtn.classList.remove('text-slate-600');
+            }
+
+            renderTable();
+        }
+
+        function openDetailsModal(driverId) {
+            const driver = drivers.find(d => d.id === driverId);
+            if (!driver) return;
+
+            document.getElementById('viewPark').innerText = "Парк: " + (driver.park || "-");
+            document.getElementById('viewPark1').innerText = driver.park || "-";
+            document.getElementById('viewFIO').innerText = driver.fio || "-";
+            document.getElementById('viewFIO2').innerText = driver.fio || "-";
+
+            const linkElem = document.getElementById('viewLink');
+            if (driver.link) {
+                linkElem.href = /^https?:\/\//i.test(driver.link) ? driver.link : '#';
+                document.getElementById('viewLinkText').innerText = driver.link;
+                linkElem.classList.remove('hidden');
+            } else {
+                document.getElementById('viewLinkText').innerText = "Ссылка не указана";
+            }
+
+            document.getElementById('viewClid').innerText = driver.clid || "-";
+            document.getElementById('viewLicense').innerText = driver.license || "-";
+            document.getElementById('viewCountry').innerText = driver.country || "-";
+            document.getElementById('viewCountry2').innerText = driver.country || "-";
+
+            document.getElementById('viewPhoneMainText').innerText = driver.phoneMain || "-";
+            document.getElementById('viewPhoneMain').href = "tel:" + driver.phoneMain;
+            const mainWa = formatPhoneForWa(driver.phoneMain);
+            document.getElementById('viewPhoneMainWa').href = "https://wa.me/" + mainWa;
+            
+            const extraPhoneBox = document.getElementById('viewPhoneExtraBox');
+            if (driver.phoneExtra) {
+                document.getElementById('viewPhoneExtraText').innerText = driver.phoneExtra;
+                document.getElementById('viewPhoneExtra').href = "tel:" + driver.phoneExtra;
+                const extraWa = formatPhoneForWa(driver.phoneExtra);
+                document.getElementById('viewPhoneExtraWa').href = "https://wa.me/" + extraWa;
+                extraPhoneBox.classList.remove('hidden');
+            } else {
+                extraPhoneBox.classList.add('hidden');
+            }
+
+            document.getElementById('viewReferredBy').innerText = driver.referredBy ? driver.referredBy : "— Никого (Пришел напрямую)";
+
+            const referralsBrought = drivers.filter(d => d.referredBy && d.referredBy.trim().toLowerCase() === (driver.fio || '').trim().toLowerCase());
+            document.getElementById('viewReferralsCount').innerText = `${referralsBrought.length} чел`;
+
+            const referralContainer = document.getElementById('referredListContainer');
+            referralContainer.innerHTML = '';
+            if (referralsBrought.length > 0) {
+                referralsBrought.forEach(refRaw => {
+                    const ref = escObj(refRaw);
+                    const div = document.createElement('div');
+                    div.className = "bg-slate-50 border border-slate-200 p-2.5 rounded-xl flex items-center justify-between text-xs";
+                    div.innerHTML = `
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-user-plus text-amber-500"></i>
+                            <div>
+                                <span class="font-bold text-slate-800">${ref.fio}</span>
+                                <span class="text-slate-500 ml-2">(${ref.phoneMain})</span>
+                            </div>
+                        </div>
+                        <span class="text-slate-500">${ref.contractType}</span>
+                    `;
+                    referralContainer.appendChild(div);
+                });
+            } else {
+                referralContainer.innerHTML = `<p class="text-xs text-slate-400 italic">Пока никого не привёл.</p>`;
+            }
+
+            document.getElementById('viewContractTypeText').innerText = driver.contractType || "-";
+            document.getElementById('viewContractBadge').innerText = driver.contractType || "-";
+
+            const gallery = document.getElementById('viewPhotosGallery');
+            gallery.innerHTML = '';
+            if (driver.photos && driver.photos.length > 0) {
+                driver.photos.forEach((photo) => {
+                    const imgDiv = document.createElement('div');
+                    imgDiv.className = "relative group rounded-xl overflow-hidden border border-slate-200 aspect-video bg-slate-100";
+                    const isPdf = photo.type === 'application/pdf';
+                    const show = (url) => {
+                        imgDiv.innerHTML = isPdf
+                            ? `<div class="w-full h-full flex items-center justify-center text-red-600 font-bold"><i class="fa-solid fa-file-pdf text-2xl mr-2"></i>PDF</div>`
+                            : `<img src="${url}" alt="Документ фото" class="w-full h-full object-cover">`;
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.target = '_blank';
+                        a.className = "absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-semibold gap-1";
+                        a.innerHTML = '<i class="fa-solid fa-expand"></i> Увеличить';
+                        imgDiv.appendChild(a);
+                    };
+                    if (photoCache[photo.key]) {
+                        show(photoCache[photo.key]);
+                    } else {
+                        imgDiv.innerHTML = `<div class="w-full h-full flex items-center justify-center text-xs text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Загрузка…</div>`;
+                        api('photos/' + photo.key.split('/').map(encodeURIComponent).join('/'), { raw: true })
+                            .then(r => r.blob())
+                            .then(b => { photoCache[photo.key] = URL.createObjectURL(b); show(photoCache[photo.key]); })
+                            .catch(() => { imgDiv.innerHTML = `<div class="w-full h-full flex items-center justify-center text-xs text-red-500">Фото не загрузилось</div>`; });
+                    }
+                    gallery.appendChild(imgDiv);
+                });
+            } else {
+                gallery.innerHTML = `
+                    <div class="col-span-full py-4 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                        <i class="fa-regular fa-image text-lg mb-1 block"></i> Фотокомплект документов не загружен
+                    </div>
+                `;
+            }
+
+            document.getElementById('modalDeleteBtn').onclick = function() {
+                closeDetailsModal();
+                promptDeleteDriver(driver.id);
+            };
+
+            document.getElementById('detailsModal').classList.remove('hidden');
+        }
+
+        function closeDetailsModal() {
+            document.getElementById('detailsModal').classList.add('hidden');
+        }
+
+        function openAddModal() {
+            populateReferralDropdown();
+            uploadedPhotos = [];
+            document.getElementById('filePreviewContainer').innerHTML = '';
+            document.getElementById('addDriverForm').reset();
+            document.getElementById('addModal').classList.remove('hidden');
+        }
+
+        function closeAddModal() {
+            document.getElementById('addModal').classList.add('hidden');
+        }
+
+        function populateReferralDropdown() {
+            const datalist = document.getElementById('referredByOptions');
+            if (!datalist) return;
+            datalist.innerHTML = '';
+            drivers.forEach(d => {
+                if (d.fio) {
+                    const opt = document.createElement('option');
+                    opt.value = d.fio;
+                    opt.label = `${d.park || ''} ${d.phoneMain ? '(' + d.phoneMain + ')' : ''}`;
+                    datalist.appendChild(opt);
+                }
+            });
+        }
+
+        // Сжимаем фото перед отправкой (быстрее загрузка, меньше места)
+        function compressImage(file, maxSide, quality) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const k = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+                        const c = document.createElement('canvas');
+                        c.width = Math.round(img.naturalWidth * k);
+                        c.height = Math.round(img.naturalHeight * k);
+                        const ctx = c.getContext('2d');
+                        ctx.fillStyle = '#fff';
+                        ctx.fillRect(0, 0, c.width, c.height);
+                        ctx.drawImage(img, 0, 0, c.width, c.height);
+                        c.toBlob(b => resolve({ blob: b, url: URL.createObjectURL(b) }), 'image/jpeg', quality);
+                    };
+                    img.onerror = () => resolve(null);
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        let uploadedPhotos = [];
+        async function previewUploadedFiles(input) {
+            const container = document.getElementById('filePreviewContainer');
+            container.innerHTML = '';
+            uploadedPhotos = [];
+
+            if (input.files) {
+                const files = Array.from(input.files);
+                for (let index = 0; index < files.length; index++) {
+                    const r = await compressImage(files[index], 1800, 0.82);
+                    if (!r) { showToast('Файл не принят', files[index].name + ' — это не фото.', 'red'); continue; }
+                    uploadedPhotos.push({ blob: r.blob, name: files[index].name });
+
+                    const div = document.createElement('div');
+                    div.className = "relative w-20 h-20 rounded-lg overflow-hidden border border-slate-300 bg-slate-100 shadow-sm";
+                    div.innerHTML = `
+                        <img src="${r.url}" class="w-full h-full object-cover">
+                        <span class="absolute bottom-0 right-0 bg-slate-900/70 text-white text-[9px] px-1">${uploadedPhotos.length}</span>
+                    `;
+                    container.appendChild(div);
+                }
+            }
+        }
+
+        // Сохраняет водителя в общую базу: сначала фото, потом карточку
+        async function saveDriverToServer(driverData, photoBlobs, onProgress) {
+            const id = newId();
+            const photos = [];
+            for (let i = 0; i < photoBlobs.length; i++) {
+                if (onProgress) onProgress(`Загрузка фото ${i + 1} из ${photoBlobs.length}…`);
+                const p = photoBlobs[i];
+                const r = await api(`photos/${id}/${i}`, { method: 'PUT', headers: { 'Content-Type': p.blob.type || 'image/jpeg' }, body: p.blob });
+                photos.push({ key: r.key, type: r.type, name: p.name });
+            }
+            if (onProgress) onProgress('Сохранение…');
+            const res = await api('drivers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ driver: Object.assign({}, driverData, { id: id, photos: photos }) }) });
+            return res.driver;
+        }
+
+        async function handleAddDriver(e) {
+            e.preventDefault();
+
+            const driverData = {
+                park: document.getElementById('addPark').value.trim(),
+                fio: document.getElementById('addFIO').value.trim(),
+                link: document.getElementById('addLink').value.trim(),
+                clid: document.getElementById('addClid').value.trim(),
+                license: document.getElementById('addLicense').value.trim(),
+                country: document.getElementById('addCountry').value,
+                phoneMain: document.getElementById('addPhoneMain').value.trim(),
+                phoneExtra: document.getElementById('addPhoneExtra').value.trim(),
+                referredBy: document.getElementById('addReferredBy').value.trim(),
+                contractType: document.getElementById('addContractType').value
+            };
+
+            const submitBtn = document.querySelector('#addDriverForm button[type="submit"]');
+            const submitHtml = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            try {
+                const saved = await saveDriverToServer(driverData, uploadedPhotos, (t) => {
+                    submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> ' + t;
+                });
+                drivers.unshift(saved);
+                saveToStorage();
+            } catch (err) {
+                showToast('Не сохранено', err.message, 'red');
+                return;
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = submitHtml;
+            }
+
+            closeAddModal();
+            renderTable();
+            updateStats();
+            populateReferralDropdown();
+
+            showToast("Сохранено!", `${driverData.fio} добавлен в общую базу.`);
+        }
+
+        function promptDeleteDriver(driverId) {
+            const driver = drivers.find(d => d.id === driverId);
+            if (!driver) return;
+
+            driverToDeleteId = driverId;
+            document.getElementById('deleteDriverName').innerText = driver.fio;
+            document.getElementById('confirmDeleteBtn').onclick = function() {
+                confirmDeleteDriver();
+            };
+            document.getElementById('deleteModal').classList.remove('hidden');
+        }
+
+        function closeDeleteModal() {
+            driverToDeleteId = null;
+            document.getElementById('deleteModal').classList.add('hidden');
+        }
+
+        async function confirmDeleteDriver() {
+            if (!driverToDeleteId) return;
+
+            const driver = drivers.find(d => d.id === driverToDeleteId);
+            if (driver) {
+                const btn = document.getElementById('confirmDeleteBtn');
+                btn.disabled = true;
+                try {
+                    await api('drivers/' + encodeURIComponent(driver.id), { method: 'DELETE' });
+                } catch (err) {
+                    btn.disabled = false;
+                    showToast('Не удалено', err.message, 'red');
+                    return;
+                }
+                btn.disabled = false;
+                drivers = drivers.filter(d => d.id !== driver.id);
+                saveToStorage();
+                renderTable();
+                updateStats();
+                showToast("Удалено!", `Водитель ${driver.fio} удален из базы.`, 'red');
+            }
+            closeDeleteModal();
+        }
+
+        /* PERCENTAGE CALCULATOR LOGIC */
+        function openCalcModal() {
+            document.getElementById('calcModal').classList.remove('hidden');
+            calculateCommission();
+        }
+
+        function closeCalcModal() {
+            document.getElementById('calcModal').classList.add('hidden');
+        }
+
+        function setCalcPercent(val) {
+            document.getElementById('calcPercent').value = val;
+            
+            // Highlight active button
+            document.querySelectorAll('.calc-pct-btn').forEach(btn => {
+                btn.className = "calc-pct-btn bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 font-bold py-2 rounded-lg text-xs transition-all border border-slate-200";
+            });
+
+            const targetBtn = Array.from(document.querySelectorAll('.calc-pct-btn')).find(b => b.innerText === `${val}%`);
+            if (targetBtn) {
+                targetBtn.className = "calc-pct-btn bg-indigo-600 text-white font-bold py-2 rounded-lg text-xs transition-all border border-indigo-600 active-pct";
+            }
+
+            calculateCommission();
+        }
+
+        function calculateCommission() {
+            const amount = parseFloat(document.getElementById('calcAmount').value) || 0;
+            const pct = parseFloat(document.getElementById('calcPercent').value) || 0;
+
+            document.getElementById('calcPercentDisplay').innerText = pct;
+
+            const commission = (amount * pct) / 100;
+            const driverEarned = amount - commission;
+
+            document.getElementById('calcResultCommission').innerText = Math.round(commission).toLocaleString('ru-RU') + " сом";
+            document.getElementById('calcResultDriver').innerText = Math.round(driverEarned).toLocaleString('ru-RU') + " сом";
+        }
+
+        function showToast(title, message, type = 'emerald') {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toastIcon');
+
+            document.getElementById('toastTitle').innerText = title;
+            document.getElementById('toastMessage').innerText = message;
+
+            if (type === 'red') {
+                icon.className = "w-8 h-8 rounded-lg bg-red-500 text-white flex items-center justify-center font-bold";
+                icon.innerHTML = `<i class="fa-solid fa-trash-can"></i>`;
+            } else {
+                icon.className = "w-8 h-8 rounded-lg bg-emerald-500 text-slate-950 flex items-center justify-center font-bold";
+                icon.innerHTML = `<i class="fa-solid fa-check"></i>`;
+            }
+
+            toast.classList.remove('translate-y-20', 'opacity-0', 'pointer-events-none');
+            
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0', 'pointer-events-none');
+            }, 3500);
+        }
+
+        function openGoogleSheetsModal() {
+            if (lastSyncAt) setSyncStatus('Подключено. Водителей в базе: ' + drivers.length, 'ok');
+            else setSyncStatus('Загрузка…', 'info');
+            updateMigrateBox();
+            document.getElementById('googleSheetsModal').classList.remove('hidden');
+        }
+
+        function closeGoogleSheetsModal() {
+            document.getElementById('googleSheetsModal').classList.add('hidden');
+        }
+
+        function updateMigrateBox() {
+            document.getElementById('migrateCount').innerText = localDrivers.length;
+            document.getElementById('migrateBox').classList.toggle('hidden', !(lastSyncAt && localDrivers.length > 0));
+        }
+
+        function dataUrlToBlob(dataUrl) {
+            const m = String(dataUrl).match(/^data:([^;]+);base64,(.*)$/);
+            if (!m) return null;
+            const bin = atob(m[2]);
+            const arr = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+            return new Blob([arr], { type: m[1] });
+        }
+
+        // Перенос водителей, которые раньше сохранялись только в этом браузере
+        async function migrateLocalDrivers() {
+            if (!localDrivers.length) return;
+            const btn = document.getElementById('migrateBtn');
+            btn.disabled = true;
+            let done = 0, skipped = 0;
+            const remaining = [];
+            for (const d of localDrivers.slice().reverse()) {
+                const dup = drivers.some(x => (d.clid && x.clid === d.clid) || (x.fio === d.fio && x.phoneMain === d.phoneMain));
+                if (dup) { skipped++; continue; }
+                setSyncStatus(`Переношу ${done + 1}: ${d.fio}…`, 'info');
+                try {
+                    const blobs = (d.photos || []).map((p, i) => ({ blob: dataUrlToBlob(p), name: 'документ-' + (i + 1) })).filter(p => p.blob && /^image\/(jpeg|png|webp)$/.test(p.blob.type));
+                    const saved = await saveDriverToServer({
+                        park: d.park, fio: d.fio, link: d.link === 'https://yango.pro/driver/default' ? '' : d.link,
+                        clid: d.clid, license: d.license, country: d.country, phoneMain: d.phoneMain,
+                        phoneExtra: d.phoneExtra, referredBy: d.referredBy, contractType: d.contractType
+                    }, blobs);
+                    drivers.unshift(saved);
+                    done++;
+                } catch (err) {
+                    remaining.push(d);
+                }
+            }
+            localDrivers = remaining.reverse();
+            if (localDrivers.length) lsSet('taxopark_drivers', JSON.stringify(localDrivers)); else lsDel('taxopark_drivers');
+            saveToStorage();
+            renderTable();
+            updateStats();
+            populateReferralDropdown();
+            btn.disabled = false;
+            updateMigrateBox();
+            setSyncStatus(`Перенесено: ${done}. Уже были в базе: ${skipped}.` + (remaining.length ? ` Не удалось: ${remaining.length} — нажмите ещё раз.` : ''), remaining.length ? 'err' : 'ok');
+        }
+
+        function exportToCSV() {
+            if (drivers.length === 0) {
+                showToast("Ошибка", "База водителей пуста.", 'red');
+                return;
+            }
+
+            let csvContent = "\uFEFF"; 
+            csvContent += "ID,Название Парка,ФИО,Ссылка Личная,CLID Номер,ВУ Номер,Страна,Номер телефона,Доп номер,От Кого,Вид Деятельности\n";
+
+            drivers.forEach(d => {
+                const q = v => '"' + String(v || '').replace(/"/g, '""') + '"';
+                const row = [
+                    q(d.id),
+                    q(d.park),
+                    q(d.fio),
+                    q(d.link),
+                    q(d.clid),
+                    q(d.license),
+                    q(d.country),
+                    q(d.phoneMain),
+                    q(d.phoneExtra),
+                    q(d.referredBy),
+                    q(d.contractType)
+                ].join(",");
+                csvContent += row + "\n";
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `taxopark_drivers_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast("Скачано!", "CSV файл успешно сформирован.");
+        }
+
+    </script>
+</body>
+</html>
