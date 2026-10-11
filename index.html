@@ -684,18 +684,19 @@
             const headers = Object.assign({}, opts.headers || {});
             let res;
             try {
-                res = await fetch('/api/' + path, { method: opts.method || 'GET', headers: headers, body: opts.body, cache: 'no-store' });
+                res = await fetch('/api/handler?path=' + encodeURIComponent(path), { method: opts.method || 'GET', headers: headers, body: opts.body, cache: 'no-store' });
             } catch (e) {
                 throw new Error('Нет связи с сервером. Проверьте интернет.');
             }
             if (opts.raw && res.ok) return res;
             let data = null;
             try { data = await res.json(); } catch (e) {}
-            if (!data) throw new Error('Сервер базы не отвечает. Возможно, сайт загружен без папки netlify (см. инструкцию).');
+            if (!data) throw new Error('Сервер базы не отвечает. Проверьте, что сайт загружен на Vercel вместе с папкой api (см. инструкцию).');
             if (!data.ok) {
                 const msg = {
-                    too_large: 'Файл слишком большой (максимум 4 МБ).',
-                    bad_type: 'Можно загружать только фото (JPG, PNG) или PDF.'
+                    storage_not_connected: 'К проекту на Vercel не подключено хранилище Blob (см. инструкцию, шаг 3).',
+                    too_large: 'Фото слишком большое.',
+                    bad_type: 'Можно загружать только фото (JPG, PNG).'
                 }[data.error] || ('Ошибка сервера: ' + data.error);
                 throw new Error(msg);
             }
@@ -1037,7 +1038,9 @@
                         a.innerHTML = '<i class="fa-solid fa-expand"></i> Увеличить';
                         imgDiv.appendChild(a);
                     };
-                    if (photoCache[photo.key]) {
+                    if (photo.url) {
+                        show(photo.url);
+                    } else if (photoCache[photo.key]) {
                         show(photoCache[photo.key]);
                     } else {
                         imgDiv.innerHTML = `<div class="w-full h-full flex items-center justify-center text-xs text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Загрузка…</div>`;
@@ -1149,8 +1152,14 @@
             for (let i = 0; i < photoBlobs.length; i++) {
                 if (onProgress) onProgress(`Загрузка фото ${i + 1} из ${photoBlobs.length}…`);
                 const p = photoBlobs[i];
-                const r = await api(`photos/${id}/${i}`, { method: 'PUT', headers: { 'Content-Type': p.blob.type || 'image/jpeg' }, body: p.blob });
-                photos.push({ key: r.key, type: r.type, name: p.name });
+                const data = await new Promise((ok, fail) => {
+                    const fr = new FileReader();
+                    fr.onload = () => ok(String(fr.result).split(',')[1]);
+                    fr.onerror = fail;
+                    fr.readAsDataURL(p.blob);
+                });
+                const r = await api('photos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ driverId: id, n: i, type: p.blob.type || 'image/jpeg', data: data }) });
+                photos.push({ key: r.key, url: r.url, type: r.type, name: p.name });
             }
             if (onProgress) onProgress('Сохранение…');
             const res = await api('drivers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ driver: Object.assign({}, driverData, { id: id, photos: photos }) }) });
@@ -1337,7 +1346,13 @@
                 if (dup) { skipped++; continue; }
                 setSyncStatus(`Переношу ${done + 1}: ${d.fio}…`, 'info');
                 try {
-                    const blobs = (d.photos || []).map((p, i) => ({ blob: dataUrlToBlob(p), name: 'документ-' + (i + 1) })).filter(p => p.blob && /^image\/(jpeg|png|webp)$/.test(p.blob.type));
+                    const blobs = [];
+                    for (const [i, p] of (d.photos || []).entries()) {
+                        const raw = dataUrlToBlob(p);
+                        if (!raw || !/^image\//.test(raw.type)) continue;
+                        const c = await compressImage(raw, 1800, 0.82);
+                        if (c) blobs.push({ blob: c.blob, name: 'документ-' + (i + 1) });
+                    }
                     const saved = await saveDriverToServer({
                         park: d.park, fio: d.fio, link: d.link === 'https://yango.pro/driver/default' ? '' : d.link,
                         clid: d.clid, license: d.license, country: d.country, phoneMain: d.phoneMain,
