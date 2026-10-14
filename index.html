@@ -167,7 +167,7 @@
     </main>
 
     <!-- DRIVER DETAILS MODAL (All 10 Points Display) -->
-    <div id="detailsModal" class="modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 hidden transition-opacity duration-200">
+    <div id="detailsModal" class="modal-backdrop fixed inset-0 z-[55] flex items-center justify-center p-4 hidden transition-opacity duration-200">
         <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
             <!-- Modal Header -->
             <div class="bg-slate-900 text-white p-5 flex justify-between items-start">
@@ -550,7 +550,7 @@
     </div>
 
     <!-- DELETE CONFIRMATION MODAL -->
-    <div id="deleteModal" class="modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 hidden transition-opacity duration-200">
+    <div id="deleteModal" class="modal-backdrop fixed inset-0 z-[58] flex items-center justify-center p-4 hidden transition-opacity duration-200">
         <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 text-center border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
             <div class="w-14 h-14 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
                 <i class="fa-solid fa-triangle-exclamation"></i>
@@ -606,12 +606,12 @@
                 <!-- Export to CSV Section -->
                 <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
                     <h4 class="font-bold text-slate-800 flex items-center gap-2">
-                        <i class="fa-solid fa-file-csv text-emerald-600"></i>
-                        1. Экспорт базы в Excel (CSV)
+                        <i class="fa-solid fa-table-list text-emerald-600"></i>
+                        1. Таблица всех водителей
                     </h4>
-                    <p class="text-xs text-slate-500">Скачайте актуальную базу всех водителей со всеми 10 полями — файл открывается в Excel.</p>
-                    <button onclick="exportToCSV()" class="w-full mt-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 shadow-sm">
-                        <i class="fa-solid fa-download"></i> Скачать CSV файл
+                    <p class="text-xs text-slate-500">Вся база по порядку, каждый пункт — в своём столбце. Открывается прямо на сайте, без скачивания.</p>
+                    <button onclick="closeGoogleSheetsModal(); openTableModal()" class="w-full mt-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 shadow-sm">
+                        <i class="fa-solid fa-table"></i> Открыть таблицу
                     </button>
                 </div>
 
@@ -633,6 +633,53 @@
                 <button onclick="closeGoogleSheetsModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl font-semibold text-xs transition-all">
                     Закрыть
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DRIVERS TABLE MODAL -->
+    <div id="tableModal" class="modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 hidden">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-[1400px] h-[94vh] flex flex-col overflow-hidden border border-slate-100">
+            <div class="bg-emerald-700 text-white p-4 sm:p-5 flex justify-between items-center gap-3">
+                <div class="flex items-center gap-3">
+                    <div class="bg-emerald-800 p-2.5 rounded-xl"><i class="fa-solid fa-table text-xl text-emerald-200"></i></div>
+                    <div>
+                        <h3 class="font-bold text-lg leading-tight">Таблица водителей</h3>
+                        <p class="text-xs text-emerald-100"><span id="tableCount">0</span> водителей · нажмите на заголовок столбца, чтобы отсортировать</p>
+                    </div>
+                </div>
+                <button onclick="closeTableModal()" class="text-emerald-200 hover:text-white text-lg w-8 h-8 rounded-full flex items-center justify-center hover:bg-emerald-800 transition-all" title="Закрыть">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="px-4 sm:px-5 py-3 border-b border-slate-200 flex flex-col sm:flex-row gap-2 sm:items-center justify-between bg-slate-50">
+                <div class="relative w-full sm:w-80">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <input type="text" id="tableSearch" oninput="renderDriversTable()" placeholder="Поиск в таблице…" class="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-xs">
+                </div>
+                <div class="flex items-center gap-2 text-xs">
+                    <label for="tableGroup" class="text-slate-500 font-semibold">Группировать:</label>
+                    <select id="tableGroup" onchange="renderDriversTable()" class="px-2.5 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500">
+                        <option value="">Без группировки</option>
+                        <option value="park">По парку</option>
+                        <option value="contractType">По виду деятельности</option>
+                        <option value="country">По стране</option>
+                        <option value="referredBy">По тому, кто привёл</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex-grow overflow-auto custom-scrollbar">
+                <table class="w-full text-left border-collapse text-xs min-w-[1250px]">
+                    <thead class="sticky top-0 z-10">
+                        <tr id="tableHead" class="bg-slate-100 border-b border-slate-200 text-slate-600 uppercase tracking-wider font-semibold"></tr>
+                    </thead>
+                    <tbody id="tableBody" class="divide-y divide-slate-100"></tbody>
+                </table>
+                <div id="tableEmpty" class="hidden py-16 text-center text-sm text-slate-400">Нет водителей для отображения</div>
+            </div>
+            <div class="bg-slate-50 p-3 border-t border-slate-200 flex justify-between items-center gap-2 text-xs">
+                <button onclick="exportToCSV()" class="text-slate-500 hover:text-emerald-700 font-semibold flex items-center gap-1.5"><i class="fa-solid fa-file-excel"></i> Сохранить копию для Excel</button>
+                <button onclick="closeTableModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl font-semibold transition-all">Закрыть</button>
             </div>
         </div>
     </div>
@@ -1374,6 +1421,139 @@
             updateMigrateBox();
             setSyncStatus(`Перенесено: ${done}. Уже были в базе: ${skipped}.` + (remaining.length ? ` Не удалось: ${remaining.length} — нажмите ещё раз.` : ''), remaining.length ? 'err' : 'ok');
         }
+
+        /* DRIVERS TABLE (opens on the site, no download) */
+        const TABLE_COLUMNS = [
+            { key: 'num', label: '№', sortable: false },
+            { key: 'createdAt', label: 'Дата добавления' },
+            { key: 'park', label: '1. Парк' },
+            { key: 'fio', label: '2. ФИО водителя' },
+            { key: 'link', label: '3. Ссылка личная' },
+            { key: 'clid', label: '4. CLID' },
+            { key: 'license', label: '5. В/У' },
+            { key: 'country', label: '6. Страна' },
+            { key: 'phoneMain', label: '7. Телефон' },
+            { key: 'phoneExtra', label: '7. Доп. номер' },
+            { key: 'referredBy', label: '8. От кого' },
+            { key: 'brought', label: 'Привёл (чел.)' },
+            { key: 'contractType', label: '9. Вид деятельности' },
+            { key: 'photos', label: '10. Фото док.' }
+        ];
+        let tableSort = { key: 'fio', dir: 1 };
+
+        function fmtDate(v) {
+            if (!v) return '—';
+            const d = new Date(v);
+            if (isNaN(d)) return escHtml(v);
+            return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' + d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function broughtCount(d) {
+            const name = (d.fio || '').trim().toLowerCase();
+            if (!name) return 0;
+            return drivers.filter(x => x.referredBy && x.referredBy.trim().toLowerCase() === name).length;
+        }
+
+        function tableValue(d, key) {
+            if (key === 'brought') return broughtCount(d);
+            if (key === 'photos') return (d.photos || []).length;
+            if (key === 'createdAt') return d.createdAt || '';
+            return String(d[key] || '').toLowerCase();
+        }
+
+        function openTableModal() {
+            document.getElementById('tableModal').classList.remove('hidden');
+            if (location.hash !== '#table') history.replaceState(null, '', '#table');
+            renderDriversTable();
+            loadFromServer(true); // свежие данные из базы
+        }
+
+        function closeTableModal() {
+            document.getElementById('tableModal').classList.add('hidden');
+            if (location.hash === '#table') history.replaceState(null, '', location.pathname + location.search);
+        }
+
+        function sortTableBy(key) {
+            if (tableSort.key === key) tableSort.dir = -tableSort.dir;
+            else tableSort = { key: key, dir: 1 };
+            renderDriversTable();
+        }
+
+        function renderDriversTable() {
+            const head = document.getElementById('tableHead');
+            head.innerHTML = TABLE_COLUMNS.map(c => {
+                const active = tableSort.key === c.key;
+                const arrow = c.sortable === false ? '' : (active ? (tableSort.dir > 0 ? ' <i class="fa-solid fa-arrow-down-a-z text-amber-600"></i>' : ' <i class="fa-solid fa-arrow-up-z-a text-amber-600"></i>') : ' <i class="fa-solid fa-sort text-slate-300"></i>');
+                const click = c.sortable === false ? '' : ` onclick="sortTableBy('${c.key}')" style="cursor:pointer"`;
+                return `<th class="py-3 px-3 whitespace-nowrap bg-slate-100 ${active ? 'text-slate-900' : ''}"${click}>${c.label}${arrow}</th>`;
+            }).join('');
+
+            const q = (document.getElementById('tableSearch').value || '').trim().toLowerCase();
+            let rows = drivers.filter(d => !q || [d.park, d.fio, d.clid, d.license, d.country, d.phoneMain, d.phoneExtra, d.referredBy, d.contractType]
+                .some(v => String(v || '').toLowerCase().includes(q)));
+
+            const k = tableSort.key, dir = tableSort.dir;
+            rows.sort((a, b) => {
+                const va = tableValue(a, k), vb = tableValue(b, k);
+                if (typeof va === 'number') return (va - vb) * dir;
+                return String(va).localeCompare(String(vb), 'ru') * dir || String(a.fio || '').localeCompare(String(b.fio || ''), 'ru');
+            });
+
+            const group = document.getElementById('tableGroup').value;
+            document.getElementById('tableCount').innerText = rows.length;
+            document.getElementById('tableEmpty').classList.toggle('hidden', rows.length > 0);
+
+            const rowHtml = (dRaw, i) => {
+                const d = escObj(dRaw);
+                const link = /^https?:\/\//i.test(dRaw.link || '') ? `<a href="${d.link}" target="_blank" class="text-blue-600 hover:underline">открыть</a>` : (d.link || '—');
+                const nPhotos = (dRaw.photos || []).length;
+                const brought = broughtCount(dRaw);
+                return `<tr class="hover:bg-amber-50 cursor-pointer" onclick="openDetailsModal('${d.id}')">
+                    <td class="py-2.5 px-3 text-slate-400 font-mono">${i + 1}</td>
+                    <td class="py-2.5 px-3 whitespace-nowrap text-slate-500">${fmtDate(dRaw.createdAt)}</td>
+                    <td class="py-2.5 px-3 whitespace-nowrap"><span class="bg-amber-100 text-amber-800 font-semibold px-1.5 py-0.5 rounded">${d.park || '—'}</span></td>
+                    <td class="py-2.5 px-3 font-bold text-slate-900 whitespace-nowrap">${d.fio || '—'}</td>
+                    <td class="py-2.5 px-3">${link}</td>
+                    <td class="py-2.5 px-3 font-mono whitespace-nowrap">${d.clid || '—'}</td>
+                    <td class="py-2.5 px-3 font-mono whitespace-nowrap">${d.license || '—'}</td>
+                    <td class="py-2.5 px-3 whitespace-nowrap">${d.country || '—'}</td>
+                    <td class="py-2.5 px-3 whitespace-nowrap font-semibold">${d.phoneMain || '—'}</td>
+                    <td class="py-2.5 px-3 whitespace-nowrap">${d.phoneExtra || '—'}</td>
+                    <td class="py-2.5 px-3 whitespace-nowrap">${d.referredBy || '<span class="text-slate-400 italic">Напрямую</span>'}</td>
+                    <td class="py-2.5 px-3 text-center font-bold ${brought ? 'text-emerald-600' : 'text-slate-300'}">${brought}</td>
+                    <td class="py-2.5 px-3 whitespace-nowrap">${getContractBadge(dRaw.contractType)}</td>
+                    <td class="py-2.5 px-3 text-center">${nPhotos ? `<span class="text-emerald-700 font-semibold"><i class="fa-solid fa-image"></i> ${nPhotos}</span>` : '<span class="text-slate-300">—</span>'}</td>
+                </tr>`;
+            };
+
+            const body = document.getElementById('tableBody');
+            if (!group) {
+                body.innerHTML = rows.map(rowHtml).join('');
+                return;
+            }
+            const groups = new Map();
+            rows.forEach(d => {
+                const g = String(d[group] || '').trim() || (group === 'referredBy' ? 'Пришли напрямую' : 'Не указано');
+                if (!groups.has(g)) groups.set(g, []);
+                groups.get(g).push(d);
+            });
+            const names = [...groups.keys()].sort((a, b) => a.localeCompare(b, 'ru'));
+            body.innerHTML = names.map(g => {
+                const list = groups.get(g);
+                return `<tr class="bg-slate-800 text-white"><td colspan="${TABLE_COLUMNS.length}" class="py-2 px-3 font-bold text-xs">${escHtml(g)} <span class="font-normal text-slate-300">· ${list.length} чел.</span></td></tr>` + list.map(rowHtml).join('');
+            }).join('');
+        }
+
+        // Таблица обновляется вместе с базой
+        const _renderTableOrig = renderTable;
+        renderTable = function () {
+            _renderTableOrig();
+            if (!document.getElementById('tableModal').classList.contains('hidden')) renderDriversTable();
+        };
+
+        // Прямая ссылка: https://s-takci.vercel.app/#table
+        window.addEventListener('load', () => { if (location.hash === '#table') openTableModal(); });
+        window.addEventListener('hashchange', () => { if (location.hash === '#table') openTableModal(); });
 
         function exportToCSV() {
             if (drivers.length === 0) {
